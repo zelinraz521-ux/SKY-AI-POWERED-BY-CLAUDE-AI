@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Sky</title>
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);--bg:#f3ead8;--card:#fbf6ea;--text:#3b2f22;--muted:#7a6a55;--accent:#8b4a2b;--border:#cdbd9f;--user:#ebdcc0}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#2a231b;--card:#352c22;--text:#f1e7d3;--muted:#b3a288;--accent:#c7784a;--border:#5a4a37;--user:#4a3b2a}}
+:root[data-theme="dark"]{--bg:#2a231b;--card:#352c22;--text:#f1e7d3;--muted:#b3a288;--accent:#c7784a;--border:#5a4a37;--user:#4a3b2a}
+body{margin:0;background:var(--bg);color:var(--text);font-family:Georgia,"Iowan Old Style","Palatino Linotype","Times New Roman",serif;line-height:1.55;height:100vh;height:100dvh;display:flex;flex-direction:column;padding:12px;box-sizing:border-box}
+.app{flex:1;min-height:0;display:flex;gap:12px}
+.side{width:200px;flex-shrink:0;display:flex;flex-direction:column;min-height:0;border-right:1px solid var(--border);padding-right:12px}
+.side h2{font-size:.95rem;font-style:italic;font-weight:normal;margin:4px 0 8px;color:var(--muted)}
+.chatlist{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:4px}
+.chat{background:none;color:var(--text);border:1px solid transparent;text-align:left;font-weight:normal;padding:6px 8px;border-radius:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;width:100%}
+.chat.on{border-color:var(--border);background:var(--card)}
+.main{flex:1;min-width:0;display:flex;flex-direction:column;min-height:0}
+@media (max-width:620px){.side{width:130px}}
+header{padding:4px 4px 8px}
+.top{display:flex;align-items:center;justify-content:space-between;gap:8px}
+h1{margin:0;font-size:1.5rem;font-style:italic;font-weight:normal;letter-spacing:.3px}
+.byline{margin:2px 0 0;color:var(--muted);font-size:.85rem;font-style:italic}
+.status{color:var(--muted);font-size:.88rem;margin:2px 0 0;display:flex;align-items:center;gap:6px}
+.dot{width:8px;height:8px;border-radius:50%;background:#9aa0ae;display:inline-block}
+.dot.ok{background:#37b24d}
+.dot.bad{background:#fa5252}
+#log{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:12px;padding:4px}
+.msg{max-width:92%;padding:10px 12px;border-radius:4px;background:var(--card);border:1px solid var(--border);white-space:pre-wrap;word-wrap:break-word}
+.msg.user{align-self:flex-end;background:var(--user)}
+.phase{display:flex;align-items:center;gap:6px;color:var(--muted);font-size:.88rem;margin-bottom:4px}
+.arrow{background:none;color:var(--muted);border:0;padding:2px 6px;font-size:1rem;font-weight:400;cursor:pointer;line-height:1}
+.think{max-height:260px;overflow:auto;background:#101322;color:#c9cfdd;padding:10px;border-radius:8px;font-size:.8rem;margin:6px 0;white-space:pre-wrap;word-wrap:break-word}
+.reply{margin-top:2px}
+.cards{margin-top:4px}
+.note{color:var(--muted);font-size:.85rem;margin-top:6px}
+.file{margin-top:10px;border:1px solid var(--border);border-radius:10px;padding:8px;background:var(--bg)}
+.fhead{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.82rem;margin-bottom:6px;word-break:break-all}
+.acts{display:flex;gap:6px;flex-wrap:wrap}
+button{background:var(--accent);color:#fff;border:1px solid var(--accent);border-radius:3px;padding:6px 12px;font:inherit;font-size:.85rem;cursor:pointer}
+button.ghost{background:transparent;color:var(--text);border:1px solid var(--border)}
+button:disabled{opacity:.45;cursor:not-allowed}
+button[hidden]{display:none}
+pre{display:none;max-height:300px;overflow:auto;background:#101322;color:#e6e9f2;padding:10px;border-radius:8px;font-size:.8rem;margin:8px 0 0;white-space:pre}
+pre.open{display:block}
+iframe{display:none;width:100%;height:360px;border:1px solid var(--border);border-radius:8px;margin-top:8px;background:#fff;box-sizing:border-box}
+iframe.open{display:block}
+.chips{display:flex;gap:6px;flex-wrap:wrap;padding:6px 4px}
+.chips button{background:var(--card);color:var(--text);border:1px solid var(--border)}
+.composer{display:flex;gap:8px;padding-top:8px}
+textarea{flex:1;resize:none;height:52px;background:var(--card);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:10px;font:inherit;box-sizing:border-box}
+.composer button{padding:0 16px}
+.foot{color:var(--muted);font-size:.78rem;margin:6px 4px 0}
+.keybar{display:flex;gap:6px;margin-top:6px}
+.keybar input{flex:1;min-width:0;background:var(--card);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:6px 8px;font:inherit;font-size:.85rem}
+</style>
+</head>
+<body>
+<div class="app">
+<aside class="side">
+<h2>Recent chats</h2>
+<div class="chatlist" id="chatlist"></div>
+</aside>
+<main class="main">
+<header>
+<div class="top"><div><h1>Sky</h1><p class="byline">Developed by Zelingt · Powered by Claude AI</p></div><button class="ghost" id="newBtn">New chat</button></div>
+<p class="status"><span class="dot" id="dot"></span><span id="status">Connecting...</span></p>
+<div class="keybar" id="keybar"><input id="key" type="password" placeholder="Paste your Anthropic API key (kept only in this tab)" autocomplete="off"><button id="keyBtn">Use key</button></div>
+</header>
+<div id="log"></div>
+<div class="chips">
+<button class="ghost" data-p="Make a simple Snake game as one HTML file.">Snake game</button>
+<button class="ghost" data-p="Make a one-page personal website as one HTML file, with sections for about, projects and contact.">Personal website</button>
+<button class="ghost" data-p="Write a Python script that renames photos in a folder using the date they were taken.">Python script</button>
+</div>
+<div class="composer">
+<textarea id="input" placeholder="Ask for a file, code, a web page or a game..."></textarea>
+<button id="send" disabled>Send</button>
+<button id="stop" class="ghost" hidden>Stop</button>
+</div>
+<p class="foot">Makes files, code, web pages and games. It can't make or edit videos yet.</p>
+</main>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+
+const GREETING = "Hi, I'm Sky. Ask me for a file, some code, a web page or a simple game.";
+
+const INSTRUCTIONS = `You are Sky, a helpful AI assistant inside a web page. You can write code, web pages, simple games, scripts and text files, and you explain things in plain language.
+
+When your answer makes a file, start with your notes between these two lines:
+[THINKING]
+...short plain notes: what you understood, the steps you will take, and the key decisions, one line per step...
+[END THINKING]
+The user can open these notes to follow what you are doing, so keep them clear and useful.
+
+Then put each complete file in its own block, exactly in this form:
+[FILE: name.ext]
+...the complete file contents...
+[END FILE]
+
+Rules:
+- Always write complete files. Never use partial snippets or placeholders such as "rest of code here".
+- A web page or game must be ONE self-contained .html file, with its CSS and JavaScript inside it and no external libraries or images.
+- When changing a file from this conversation, output the full updated file under the same name.
+- Put a short explanation after the file blocks.
+- For questions that need no file, just answer in plain text, with no notes block.
+- You cannot create or edit video files in this page. If asked, say so in one sentence and offer code that draws an animation instead.`;
+
+const FILE_RE = /\[FILE:\s*([^\]\n]+)\]\n?([\s\S]*?)\n?\[END FILE\]/g;
+
+let sample = null, downloads = null, busy = false, ctl = null, apiKey = '';
+const sessions = [];   // chats that have at least one message, newest first
+let current = newSession();
+
+function newSession() {
+  return {title: 'New chat', items: [{role: 'assistant', raw: GREETING, ui: true}]};
+}
+
+function el(tag, cls, text) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text != null) e.textContent = text;
+  return e;
+}
+
+function addMsg(role, text) {
+  const m = el('div', 'msg ' + role, text);
+  $('log').appendChild(m);
+  $('log').scrollTop = $('log').scrollHeight;
+  return m;
+}
+
+function makeView() {
+  const box = el('div', 'msg assistant');
+  const phase = el('div', 'phase');
+  const arrow = el('button', 'arrow', '▸');
+  const label = el('span', '', 'Thinking...');
+  const panel = el('pre', 'think', '');
+  arrow.onclick = () => {
+    const open = panel.classList.toggle('open');
+    arrow.textContent = open ? '▾' : '▸';
+  };
+  phase.append(arrow, label);
+  const reply = el('div', 'reply', '');
+  const cards = el('div', 'cards');
+  box.append(phase, panel, reply, cards);
+  $('log').appendChild(box);
+  $('log').scrollTop = $('log').scrollHeight;
+  return {label, panel, reply, cards};
+}
+
+function parseStream(raw) {
+  let rest = raw, thinking = null, thinkingOpen = false;
+  const t0 = rest.indexOf('[THINKING]');
+  if (t0 !== -1) {
+    const t1 = rest.indexOf('[END THINKING]', t0);
+    thinkingOpen = t1 === -1;
+    thinking = rest.slice(t0 + 10, t1 === -1 ? rest.length : t1).trim();
+    rest = rest.slice(0, t0) + (t1 === -1 ? '' : rest.slice(t1 + 14));
+  }
+  const files = [];
+  for (const m of rest.matchAll(FILE_RE)) {
+    const content = m[2].replace(/^```[a-zA-Z]*\n/, '').replace(/\n```\s*$/, '');
+    files.push({name: m[1].trim(), content});
+  }
+  let body = rest.replace(FILE_RE, '');
+  let openFile = null;
+  const o = body.indexOf('[FILE:');
+  if (o !== -1) {
+    const m = body.slice(o).match(/^\[FILE:\s*([^\]\n]+)\]\n?([\s\S]*)$/);
+    openFile = {name: m ? m[1].trim() : 'file', content: m ? m[2] : ''};
+    body = body.slice(0, o);
+  }
+  let phaseText;
+  if (thinkingOpen) phaseText = 'Planning...';
+  else if (openFile) phaseText = 'Writing ' + openFile.name + '...';
+  else if (raw.trim()) phaseText = 'Working...';
+  else phaseText = 'Thinking...';
+  return {thinking, reply: body.trim(), files, openFile, phaseText};
+}
+
+function fileCard(f) {
+  const card = el('div', 'file');
+  card.appendChild(el('div', 'fhead', f.name + '  ·  ' + f.content.length.toLocaleString() + ' characters'));
+  const acts = el('div', 'acts');
+  const code = el('pre', '', f.content);
+  const frame = el('iframe');
+  frame.setAttribute('sandbox', 'allow-scripts');
+
+  const codeBtn = el('button', 'ghost', 'Code');
+  codeBtn.onclick = () => code.classList.toggle('open');
+  acts.appendChild(codeBtn);
+
+  if (/\.html?$/i.test(f.name)) {
+    const previewBtn = el('button', '', 'Preview');
+    previewBtn.onclick = () => {
+      if (!frame.srcdoc) frame.srcdoc = f.content;
+      frame.classList.toggle('open');
+    };
+    acts.appendChild(previewBtn);
+  }
+
+  const copyBtn = el('button', 'ghost', 'Copy');
+  copyBtn.onclick = async () => {
+    try { await navigator.clipboard.writeText(f.content); copyBtn.textContent = 'Copied'; }
+    catch (e) { copyBtn.textContent = 'Copy failed'; }
+  };
+  acts.appendChild(copyBtn);
+
+  {
+    const dlBtn = el('button', '', 'Download');
+    dlBtn.onclick = async () => {
+      dlBtn.disabled = true;
+      try {
+        const a = el('a');
+        a.href = URL.createObjectURL(new Blob([f.content], {type: 'text/plain'}));
+        a.download = f.name;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        dlBtn.textContent = 'Saved';
+      }
+      catch (e) { dlBtn.textContent = e && e.code === 'declined' ? 'Cancelled' : 'Not saved'; }
+      dlBtn.disabled = false;
+    };
+    acts.appendChild(dlBtn);
+  }
+
+  card.append(acts, code, frame);
+  return card;
+}
+
+function renderView(v, raw, final, finalLabel) {
+  const {thinking, reply, files, openFile, phaseText} = parseStream(raw);
+  const doneLabel = files.length ? 'Wrote ' + files.map(f => f.name).join(', ') : 'Done';
+  v.label.textContent = final ? (finalLabel || doneLabel) : phaseText;
+
+  let notes = thinking || (final ? 'No notes for this answer.' : 'No notes yet.');
+  if (openFile && !final) {
+    notes += '\n\n--- writing ' + openFile.name + ' (' + openFile.content.length.toLocaleString() + ' characters so far) ---\n'
+      + openFile.content.slice(-3000);
+  }
+  v.panel.textContent = notes;
+
+  v.reply.textContent = reply || (final ? 'Done.' : '');
+  if (final) {
+    v.cards.textContent = '';
+    files.forEach(f => v.cards.appendChild(fileCard(f)));
+  }
+  $('log').scrollTop = $('log').scrollHeight;
+}
+
+// Shows one saved message of a chat again.
+function replay(it) {
+  if (it.role === 'user' || it.ui) addMsg(it.role, it.raw);
+  else renderView(makeView(), it.raw, true);
+}
+
+function renderSide() {
+  const list = $('chatlist');
+  list.textContent = '';
+  sessions.forEach(s => {
+    const b = el('button', 'chat' + (s === current ? ' on' : ''), s.title);
+    b.title = s.title;
+    b.onclick = () => openSession(s);
+    list.appendChild(b);
+  });
+  if (!sessions.length) list.appendChild(el('p', 'note', 'No chats yet.'));
+}
+
+function openSession(s) {
+  if (busy) return;
+  current = s;
+  $('log').textContent = '';
+  s.items.forEach(replay);
+  renderSide();
+}
+
+function setBusy(on) {
+  busy = on;
+  $('send').disabled = on || !sample;
+  $('stop').hidden = !on;
+}
+
+async function send(text) {
+  text = text.trim();
+  if (!text || busy || !sample) return;
+  const s = current;
+  if (!sessions.includes(s)) {
+    s.title = text.slice(0, 40);
+    sessions.unshift(s);
+  }
+  setBusy(true);
+  s.items.push({role: 'user', raw: text});
+  addMsg('user', text);
+  renderSide();
+
+  // The request uses only real messages (not the greeting), kept under the size limit.
+  const hist = s.items.filter(i => !i.ui).map(i => ({role: i.role, content: i.raw}));
+  while (hist.reduce((n, m) => n + m.content.length, 0) > 200000 && hist.length > 2) hist.splice(0, 2);
+  const input = hist.map((m, i) => ({
+    role: m.role,
+    content: i === 0 ? INSTRUCTIONS + '\n\nRequest:\n' + m.content : m.content
+  }));
+
+  const view = makeView();
+  ctl = new AbortController();
+  try {
+    const res = await callClaude(input, ctl.signal, whole => renderView(view, whole, false));
+    const answer = res.text || '';
+    s.items.push({role: 'assistant', raw: answer});
+    renderView(view, answer, true);
+    if (res.truncated) view.reply.textContent += '\n\nThe answer was cut short. Ask me to continue.';
+  } catch (err) {
+    const code = err && err.code;
+    const partial = (err && err.text) || '';
+    if (code === 'cancelled' && partial) {
+      s.items.push({role: 'assistant', raw: partial});
+      renderView(view, partial, true, 'Stopped');
+    } else {
+      if (s.items.length && s.items[s.items.length - 1].role === 'user') s.items.pop();
+      view.label.textContent = code === 'cancelled' ? 'Stopped' : 'Could not finish';
+      view.reply.textContent = code === 'cancelled' ? ''
+        : code === 'not_granted' ? 'Permission to use the AI was declined.'
+        : code === 'rate_limited' ? 'Too many requests. Wait a minute and try again.'
+        : 'Something went wrong. Please try again.';
+    }
+  }
+  ctl = null;
+  setBusy(false);
+  renderSide();
+  $('input').focus();
+}
+
+$('dot').className = 'dot bad';
+$('status').textContent = 'Paste your Anthropic API key to start.';
+setBusy(false);
+
+$('keyBtn').addEventListener('click', () => {
+  apiKey = $('key').value.trim();
+  $('key').value = '';
+  if (!apiKey) return;
+  sample = true;
+  $('keybar').hidden = true;
+  $('dot').className = 'dot ok';
+  $('status').textContent = 'Online.';
+  setBusy(false);
+});
+
+// Calls Claude directly from the browser with the visitor's key and streams the answer.
+async function callClaude(messages, signal, onText) {
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    signal,
+    headers: {
+      'content-type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true'
+    },
+    body: JSON.stringify({model: 'claude-sonnet-5-5', max_tokens: 8192, stream: true, messages})
+  }).catch(e => { throw {code: e.name === 'AbortError' ? 'cancelled' : 'network', message: String(e)}; });
+  if (!res.ok) {
+    throw {code: res.status === 401 ? 'not_granted' : res.status === 429 ? 'rate_limited' : 'api_error', message: 'HTTP ' + res.status};
+  }
+  const reader = res.body.getReader();
+  const dec = new TextDecoder();
+  let text = '', buf = '';
+  try {
+    for (;;) {
+      const {done, value} = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, {stream: true});
+      let i;
+      while ((i = buf.indexOf('\n')) !== -1) {
+        const line = buf.slice(0, i).trim();
+        buf = buf.slice(i + 1);
+        if (!line.startsWith('data:')) continue;
+        const data = line.slice(5).trim();
+        if (!data || data === '[DONE]') continue;
+        const ev = JSON.parse(data);
+        if (ev.type === 'content_block_delta' && ev.delta && ev.delta.type === 'text_delta') {
+          text += ev.delta.text;
+          onText(text);
+        }
+        if (ev.type === 'error') throw {code: 'api_error', message: ev.error && ev.error.message};
+      }
+    }
+  } catch (e) {
+    if (e.code) throw {code: e.code, message: e.message, text};
+    throw {code: e.name === 'AbortError' ? 'cancelled' : 'network', message: String(e), text};
+  }
+  return {text, truncated: false};
+}
+
+$('send').addEventListener('click', () => { const t = $('input').value; $('input').value = ''; send(t); });
+$('input').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); $('send').click(); } });
+$('stop').addEventListener('click', () => { if (ctl) ctl.abort(); });
+$('newBtn').addEventListener('click', () => {
+  if (busy) return;
+  current = newSession();
+  $('log').textContent = '';
+  current.items.forEach(replay);
+  renderSide();
+});
+document.querySelectorAll('.chips button').forEach(b => b.addEventListener('click', () => send(b.dataset.p)));
+
+current.items.forEach(replay);
+renderSide();
+</script>
+</body>
+</html>
