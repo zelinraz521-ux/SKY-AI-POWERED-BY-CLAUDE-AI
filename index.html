@@ -63,9 +63,9 @@ textarea{flex:1;resize:none;height:52px;background:var(--card);color:var(--text)
 </aside>
 <main class="main">
 <header>
-<div class="top"><div><h1>Sky</h1><p class="byline">Developed by Zelingt · Powered by Claude AI</p></div><button class="ghost" id="newBtn">New chat</button></div>
+<div class="top"><div><h1>Sky</h1><p class="byline">Developed by Zelingt · Powered by DeepSeek</p></div><button class="ghost" id="newBtn">New chat</button></div>
 <p class="status"><span class="dot" id="dot"></span><span id="status">Connecting...</span></p>
-<div class="keybar" id="keybar"><input id="key" type="password" placeholder="Paste your Anthropic API key (kept only in this tab)" autocomplete="off"><button id="keyBtn">Use key</button></div>
+<div class="keybar" id="keybar"><input id="key" type="password" placeholder="Paste your DeepSeek API key (kept only in this tab)" autocomplete="off"><button id="keyBtn">Use key</button></div>
 </header>
 <div id="log"></div>
 <div class="chips">
@@ -323,7 +323,7 @@ async function send(text) {
       if (s.items.length && s.items[s.items.length - 1].role === 'user') s.items.pop();
       view.label.textContent = code === 'cancelled' ? 'Stopped' : 'Could not finish';
       view.reply.textContent = code === 'cancelled' ? ''
-        : code === 'not_granted' ? 'Permission to use the AI was declined.'
+        : code === 'not_granted' ? 'The API key was rejected. Check that it is a DeepSeek key.'
         : code === 'rate_limited' ? 'Too many requests. Wait a minute and try again.'
         : 'Something went wrong. Please try again.';
     }
@@ -335,7 +335,7 @@ async function send(text) {
 }
 
 $('dot').className = 'dot bad';
-$('status').textContent = 'Paste your Anthropic API key to start.';
+$('status').textContent = 'Paste your DeepSeek API key to start.';
 setBusy(false);
 
 $('keyBtn').addEventListener('click', () => {
@@ -351,16 +351,14 @@ $('keyBtn').addEventListener('click', () => {
 
 // Calls Claude directly from the browser with the visitor's key and streams the answer.
 async function callClaude(messages, signal, onText) {
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
+  const res = await fetch('https://api.deepseek.com/chat/completions', {
     method: 'POST',
     signal,
     headers: {
       'content-type': 'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-      'anthropic-dangerous-direct-browser-access': 'true'
+      'authorization': 'Bearer ' + apiKey
     },
-    body: JSON.stringify({model: 'claude-sonnet-5-5', max_tokens: 8192, stream: true, messages})
+    body: JSON.stringify({model: 'deepseek-chat', max_tokens: 8192, stream: true, messages})
   }).catch(e => { throw {code: e.name === 'AbortError' ? 'cancelled' : 'network', message: String(e)}; });
   if (!res.ok) {
     throw {code: res.status === 401 ? 'not_granted' : res.status === 429 ? 'rate_limited' : 'api_error', message: 'HTTP ' + res.status};
@@ -381,11 +379,12 @@ async function callClaude(messages, signal, onText) {
         const data = line.slice(5).trim();
         if (!data || data === '[DONE]') continue;
         const ev = JSON.parse(data);
-        if (ev.type === 'content_block_delta' && ev.delta && ev.delta.type === 'text_delta') {
-          text += ev.delta.text;
+        const piece = ev.choices && ev.choices[0] && ev.choices[0].delta && ev.choices[0].delta.content;
+        if (piece) {
+          text += piece;
           onText(text);
         }
-        if (ev.type === 'error') throw {code: 'api_error', message: ev.error && ev.error.message};
+        if (ev.error) throw {code: 'api_error', message: ev.error.message};
       }
     }
   } catch (e) {
